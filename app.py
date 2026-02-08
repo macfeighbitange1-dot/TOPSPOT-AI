@@ -57,7 +57,7 @@ st.markdown("""
     }
     footer {visibility: hidden;}
     </style>
-    """, unsafe_allow_value=True)
+    """, unsafe_allow_html=True)
 
 # Initialize Billing Logic
 billing = BillingSystem()
