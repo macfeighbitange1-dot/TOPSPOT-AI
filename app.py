@@ -74,7 +74,10 @@ else:
     remaining = 10 - status["trials"]
     st.sidebar.metric("Free Audits Left", f"{remaining}/10")
     
-    with st.sidebar.expander("💎 UNLOCK TOPSPOT PRO (KES 50)"):
+    # We use a state variable to expand this if the user clicks 'Unlock Pro Now' in the main area
+    is_expanded = st.session_state.get('expand_sidebar', False)
+    
+    with st.sidebar.expander("💎 UNLOCK TOPSPOT PRO (KES 50)", expanded=is_expanded):
         st.write("Unlock full Schema fixes, Professional PDF reports, and Unlimited Audits.")
         st.write(f"**Pay via M-Pesa: 0796423133**")
         tid = st.text_input("Transaction ID", placeholder="e.g. RCKL57H8S9").strip().upper()
@@ -103,12 +106,17 @@ if st.button("🚀 INITIATE AI SCAN"):
             
         with st.status("🔍 Analyzing AI Visibility...", expanded=True) as s:
             st.write("Extracting Semantic Structure...")
-            run_audit(url)
-            st.write("Consulting LLM Intelligence...")
-            billing.increment_trial()
-            s.update(label="Audit Complete!", state="complete")
+            try:
+                run_audit(url)
+                st.write("Consulting LLM Intelligence...")
+                billing.increment_trial()
+                s.update(label="Audit Complete!", state="complete")
+                time.sleep(1)
+                st.rerun() # Refresh to show results from last_fix.json
+            except Exception as e:
+                st.error(f"Audit Error: {e}")
 
-# Display Results
+# --- RESULTS DISPLAY SECTION ---
 if os.path.exists("last_fix.json"):
     with open("last_fix.json", "r") as f:
         data = json.load(f)
@@ -144,6 +152,7 @@ if os.path.exists("last_fix.json"):
     st.info(data.get("suggested_snippet", "Generating summary..."))
 
     # --- THE PAYWALL ---
+    st.markdown("---")
     if status["is_pro"]:
         st.subheader("🛠️ Pro Implementation (JSON-LD)")
         st.code(json.dumps(data.get("recommended_schema", {}), indent=2), language="json")
@@ -161,7 +170,8 @@ if os.path.exists("last_fix.json"):
     else:
         st.warning("⚠️ **PRO CONTENT LOCKED:** To access the **Full JSON-LD Schema Markup** and **Professional PDF Audit**, please upgrade to Pro.")
         if st.button("Unlock Pro Now"):
-            st.info("Please use the 'Upgrade' section in the sidebar.")
+            st.session_state['expand_sidebar'] = True
+            st.rerun()
 
 # Footer
 st.markdown("---")
