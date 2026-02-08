@@ -74,7 +74,6 @@ else:
     remaining = 10 - status["trials"]
     st.sidebar.metric("Free Audits Left", f"{remaining}/10")
     
-    # We use a state variable to expand this if the user clicks 'Unlock Pro Now' in the main area
     is_expanded = st.session_state.get('expand_sidebar', False)
     
     with st.sidebar.expander("💎 UNLOCK TOPSPOT PRO (KES 50)", expanded=is_expanded):
@@ -105,16 +104,24 @@ if st.button("🚀 INITIATE AI SCAN"):
             url = "https://" + url
             
         with st.status("🔍 Analyzing AI Visibility...", expanded=True) as s:
-            st.write("Extracting Semantic Structure...")
             try:
+                st.write("🛠️ Debug: Starting extraction...")
                 run_audit(url)
-                st.write("Consulting LLM Intelligence...")
-                billing.increment_trial()
-                s.update(label="Audit Complete!", state="complete")
-                time.sleep(1)
-                st.rerun() # Refresh to show results from last_fix.json
+                
+                st.write("🛠️ Debug: Checking for result file...")
+                if os.path.exists("last_fix.json"):
+                    st.write("✅ Debug: 'last_fix.json' found!")
+                    billing.increment_trial()
+                    s.update(label="Audit Complete!", state="complete")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error("❌ Debug: 'last_fix.json' was NOT created by the engine.")
+                    st.info(f"Current Directory Files: {os.listdir('.')}")
+                    
             except Exception as e:
-                st.error(f"Audit Error: {e}")
+                st.error(f"💥 Audit Crash: {str(e)}")
+                st.exception(e) # This will show the full error stack trace
 
 # --- RESULTS DISPLAY SECTION ---
 if os.path.exists("last_fix.json"):
@@ -143,9 +150,8 @@ if os.path.exists("last_fix.json"):
             
             if my_score < comp_score:
                 st.error(f"⚠️ You are trailing {comp_url} by {comp_score - my_score} points!")
-                st.write("AI models are currently prioritizing your competitor for direct answers.")
             else:
-                st.success("✅ You are leading the AI race! Secure your position with Pro Schema.")
+                st.success("✅ You are leading the AI race!")
 
     st.markdown("---")
     st.subheader("✨ AI-Ready Snippet Recommendation")
@@ -168,11 +174,16 @@ if os.path.exists("last_fix.json"):
                     mime="application/pdf"
                 )
     else:
-        st.warning("⚠️ **PRO CONTENT LOCKED:** To access the **Full JSON-LD Schema Markup** and **Professional PDF Audit**, please upgrade to Pro.")
+        st.warning("⚠️ **PRO CONTENT LOCKED**")
         if st.button("Unlock Pro Now"):
             st.session_state['expand_sidebar'] = True
             st.rerun()
 
-# Footer
+# --- SYSTEM DEBUG FOOTER ---
+with st.expander("📂 System Diagnostics (Developer Only)"):
+    st.write(f"Working Directory: `{os.getcwd()}`")
+    st.write(f"Files in root: `{os.listdir('.')}`")
+    st.write(f"User Data Status: `{status}`")
+
 st.markdown("---")
 st.caption("TOPSPOT AI © 2026 | Developed for Premium Kenyan Enterprises")
