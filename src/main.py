@@ -53,47 +53,47 @@ class AuraAEOPipeline:
         # PHASE 3: Reporting
         print(f"\n{'='*15} MISTRAL AEO AUDIT {'='*15}")
         print(f"URL: {url}")
-        print(f"AEO Score: {final_score}/100 (Base: {base_score} | EEAT Bonus: +{eeat_bonus})")
-        print(f"Trust Signals: Author Found: {eeat_results['has_author_byline']} | Social: {eeat_results['linkedin_found']}")
-        print(f"Top Topic Entities: {entities[:5]}")
-        print(f"Readability: {analysis.get('avg_sentence_length')} words/sentence")
+        print(f"AEO Score: {final_score}/100")
         
         # PHASE 4: Optimization with Mistral
-        suggested_answer = "N/A"
+        suggested_answer = "Content analysis complete. Website is indexed."
         recommended_schema = {}
         
-        if final_score < 80: 
-            print("\n[!] Score below threshold. Invoking Mistral Optimizer...")
+        if final_score < 95: 
+            print("\n[!] Invoking Mistral Optimizer...")
             suggested_answer = self.optimizer.generate_direct_answer(data['clean_text'])
-            print(f"MISTRAL SUGGESTED SNIPPET:\n> {suggested_answer}")
             recommended_schema = self.gen.generate_about_schema(entities)
         
-        # Record keeping for dashboard.py
+        # Record keeping - UPDATED KEYS TO MATCH app.py EXPECTATIONS
         record = {
             "url": url,
             "title": data.get("title", "Unknown"),
-            "score": final_score,
+            "aeo_score": final_score, # Changed from 'score' to 'aeo_score'
             "eeat_bonus": eeat_bonus,
             "top_entities": [str(e[0]) for e in entities[:10]],
             "suggested_snippet": suggested_answer,
             "recommended_schema": recommended_schema
         }
         
-        with open("last_fix.json", "w") as f:
-            json.dump(record, f, indent=4)
+        # SAVE TO ROOT for Streamlit
+        try:
+            with open("last_fix.json", "w") as f:
+                json.dump(record, f, indent=4)
+            print("[DEBUG] last_fix.json successfully written to root.")
+        except Exception as e:
+            print(f"[ERROR] Failed to write last_fix.json: {e}")
 
         self.results_cache.append(record)
-        print(f"\n{'='*49}")
         return record
 
 def main(url_override=None):
+    """Bridge function for app.py to trigger the audit."""
     pipeline = AuraAEOPipeline()
-    if url_override:
-        pipeline.run_audit(url_override)
-    else:
-        target_url = input("Enter a URL to audit: ").strip()
-        if target_url:
-            pipeline.run_audit(target_url)
+    # We return the audit result so app.py can confirm it finished
+    return pipeline.run_audit(url_override)
 
 if __name__ == "__main__":
-    main()
+    # For local CLI testing
+    target = input("Enter a URL to audit: ").strip()
+    if target:
+        main(target)
