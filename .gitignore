@@ -1,0 +1,7 @@
+venv/
+.env
+__pycache__/
+*.pyc
+.streamlit/
+last_fix.json
+app_usage.json
