@@ -8,14 +8,15 @@ class BillingSystem:
     def __init__(self):
         self.data_file = "app_usage.json"
         
-        # Safaricom Daraja Credentials
-        self.shortcode = "174379"
+        # Safaricom Daraja Credentials - SWITCHED TO LIVE
+        # IMPORTANT: Replace these with your PRODUCTION credentials from Daraja
+        self.shortcode = "174379" 
         self.passkey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
         self.consumer_key = "tebgdbs5GY2cAgzQo8S4FbAtGEfJoFGvRtGLGFApdYfAJLqm"
         self.consumer_secret = "fgqRJ6Qi0AAjsfkNW6dD39Vs7EGhgzSGG9Rz5dgKxWHbP5KCkhqb43ICBg5jAgzb"
         
-        # Base URLs (Set to https://api.safaricom.co.ke for Production)
-        self.base_url = "https://sandbox.safaricom.co.ke" 
+        # Base URLs - NOW SET TO PRODUCTION
+        self.base_url = "https://api.safaricom.co.ke" 
         
         self.load_data()
 
@@ -41,24 +42,23 @@ class BillingSystem:
             json.dump(self.user_data, f)
 
     def _get_access_token(self):
-        """Generates the OAuth2 access token from Safaricom."""
+        """Generates the OAuth2 access token from Safaricom Production."""
         api_url = f"{self.base_url}/oauth/v1/generate?grant_type=client_credentials"
         try:
             r = requests.get(api_url, auth=(self.consumer_key, self.consumer_secret))
             r.raise_for_status()
             return r.json().get('access_token')
         except Exception as e:
-            print(f"[ERROR] Daraja Token Generation Failed: {e}")
+            print(f"[ERROR] Live Daraja Token Generation Failed: {e}")
             return None
 
     def trigger_stk_push(self, phone, amount=99):
-        """Sends a real M-Pesa STK Push request to the user's phone via Daraja API."""
+        """Sends a real M-Pesa STK Push request to the user's phone via Production API."""
         access_token = self._get_access_token()
         if not access_token:
             return {"error": "Authentication Failed"}
 
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-        # Format: Shortcode + Passkey + Timestamp for Password
         password_str = f"{self.shortcode}{self.passkey}{timestamp}"
         password = base64.b64encode(password_str.encode()).decode()
         
@@ -89,10 +89,10 @@ class BillingSystem:
         try:
             response = requests.post(api_url, json=payload, headers=headers)
             res_data = response.json()
-            print(f"[M-PESA] Request Sent: {res_data.get('CustomerMessage', 'Requested')}")
+            print(f"[M-PESA LIVE] Request Sent: {res_data.get('CustomerMessage', 'Requested')}")
             return res_data
         except Exception as e:
-            print(f"[ERROR] STK Push API Error: {e}")
+            print(f"[ERROR] Live STK Push API Error: {e}")
             return {"error": str(e)}
 
     def unlock_pro(self, transaction_id):
@@ -101,7 +101,6 @@ class BillingSystem:
             return False
             
         transaction_id = str(transaction_id).strip().upper()
-        # M-Pesa IDs are usually 10 characters (e.g., RCKL57H8S9)
         if len(transaction_id) >= 10 and transaction_id[0].isalpha():
             self.user_data["is_pro"] = True
             self.user_data["trans_id"] = transaction_id
