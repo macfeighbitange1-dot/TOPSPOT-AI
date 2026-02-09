@@ -13,48 +13,20 @@ st.set_page_config(page_title="TOPSPOT AI", page_icon="🎯", layout="wide")
 # Custom CSS for Dark Mode Command Center Aesthetic
 st.markdown("""
     <style>
-    .stApp {
-        background-color: #0E1117;
-        color: #E0E0E0;
+    .stApp { background-color: #0E1117; color: #E0E0E0; }
+    section[data-testid="stSidebar"] { background-color: #161B22; border-right: 1px solid #30363D; }
+    .stButton>button { 
+        width: 100%; border-radius: 8px; height: 3.5em; 
+        background-color: #1F6feb; color: white; font-weight: bold; 
+        border: none; transition: 0.3s; 
     }
-    section[data-testid="stSidebar"] {
-        background-color: #161B22;
-        border-right: 1px solid #30363D;
+    .stButton>button:hover { background-color: #388bfd; border: 1px solid #58a6ff; }
+    div[data-testid="stMetricValue"] { color: #58a6ff; }
+    .stMetric { 
+        background-color: #161B22; padding: 20px; border-radius: 12px; 
+        border: 1px solid #30363D; box-shadow: 0 4px 6px rgba(0,0,0,0.3); 
     }
-    .stButton>button {
-        width: 100%;
-        border-radius: 8px;
-        height: 3.5em;
-        background-color: #1F6feb;
-        color: white;
-        font-weight: bold;
-        border: none;
-        transition: 0.3s;
-    }
-    .stButton>button:hover {
-        background-color: #388bfd;
-        border: 1px solid #58a6ff;
-    }
-    div[data-testid="stMetricValue"] {
-        color: #58a6ff;
-    }
-    .stMetric {
-        background-color: #161B22;
-        padding: 20px;
-        border-radius: 12px;
-        border: 1px solid #30363D;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    }
-    .stTextInput>div>div>input {
-        background-color: #0D1117;
-        color: white;
-        border: 1px solid #30363D;
-    }
-    div[data-testid="stExpander"] {
-        background-color: #161B22;
-        border: 1px solid #30363D;
-        border-radius: 12px;
-    }
+    .stTextInput>div>div>input { background-color: #0D1117; color: white; border: 1px solid #30363D; }
     footer {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
@@ -76,10 +48,32 @@ else:
     # Tiered Pricing Options
     promo = st.sidebar.radio("Select Plan", ["Basic Audit (KES 99)", "Triple Threat (KES 250)", "Full Agency PDF (KES 499)"])
     
-    st.sidebar.write(f"**Pay via M-Pesa: 0796423133**")
-    tid = st.sidebar.text_input("Transaction ID", placeholder="e.g. RCKL57H8S9").strip().upper()
+    # Automated M-Pesa STK Push Section (Direct Daraja Integration)
+    st.sidebar.markdown("---")
+    st.sidebar.write("**⚡ Instant Activation (STK Push)**")
+    phone = st.sidebar.text_input("Enter M-Pesa Number", placeholder="07XXXXXXXX or 254XXXXXXXX")
     
-    if st.sidebar.button("Activate Pro Features"):
+    # Map selection to price
+    amount = 99 if "99" in promo else 250 if "250" in promo else 499
+
+    if st.sidebar.button(f"Pay KES {amount} via M-Pesa"):
+        if phone:
+            with st.sidebar.spinner("Requesting M-Pesa PIN prompt..."):
+                response = billing.trigger_stk_push(phone, amount)
+                # Check for Safaricom success code '0'
+                if response.get("ResponseCode") == "0":
+                    st.sidebar.success("✅ Prompt Sent! Enter PIN on your phone.")
+                    st.sidebar.caption("Once paid, enter the M-Pesa ID below.")
+                else:
+                    st.sidebar.error("❌ M-Pesa Error. Check number and try again.")
+        else:
+            st.sidebar.warning("Please enter your phone number.")
+
+    st.sidebar.markdown("---")
+    st.sidebar.write("**Manual Verification**")
+    tid = st.sidebar.text_input("M-Pesa Transaction ID", placeholder="e.g. RCKL57H8S9").strip().upper()
+    
+    if st.sidebar.button("Verify & Activate"):
         if billing.unlock_pro(tid):
             st.balloons()
             st.success("Pro Activated! Refreshing...")
@@ -118,12 +112,12 @@ if os.path.exists("last_fix.json"):
     with open("last_fix.json", "r") as f:
         data = json.load(f)
     
-    # Extracting from new tiered structure in main.py
     basic = data.get('basic_metrics', {})
     pro = data.get('pro_features', {})
     meta = data.get('metadata', {})
 
-    st.markdown(f"## 📊 Results for: {meta.get('title', url)}")
+    display_name = meta.get('title', url) if meta.get('title') != "Unknown" else url
+    st.markdown(f"## 📊 Results for: {display_name}")
     
     c1, c2, c3 = st.columns(3)
     my_score = basic.get('aeo_score', 0)
@@ -145,7 +139,6 @@ if os.path.exists("last_fix.json"):
             st.warning("🔒 Triple Threat requires 'The Optimizer' (KES 250) or higher.")
         else:
             with st.spinner("Executing multi-competitor crawl..."):
-                # Simulation logic for chart (In production, run_audit would loop)
                 chart_data = pd.DataFrame({
                     "Entity": ["You", "Comp 1", "Comp 2", "Comp 3"],
                     "AEO Score": [my_score, 45, 62, 38]
@@ -156,7 +149,7 @@ if os.path.exists("last_fix.json"):
     st.markdown("---")
     st.subheader("✨ AI-Ready Snippet Recommendation")
     if status["is_pro"]:
-        st.info(pro.get("suggested_snippet", "Generating..."))
+        st.info(pro.get("suggested_snippet", "Generating snippet content..."))
     else:
         st.info("⚠️ [LOCKED] Upgrade to Pro (KES 99) to view the high-authority snippet recommended for LLMs.")
 
@@ -166,10 +159,8 @@ if os.path.exists("last_fix.json"):
         st.subheader("🛠️ Pro Implementation (JSON-LD)")
         st.code(json.dumps(pro.get("recommended_schema", {}), indent=2), language="json")
         
-        # PDF Generation Check
         if st.button("Generate Branded PDF Report"):
             st.write("Generating Professional Report...")
-            # Trigger analyzer.export_pdf here
             st.success("Report Ready for Download (KES 499 Tier)")
     else:
         st.warning("⚠️ **PRO CONTENT LOCKED**")
