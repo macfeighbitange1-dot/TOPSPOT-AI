@@ -86,10 +86,18 @@ class AuraAEOPipeline:
         self.results_cache.append(record)
         return record
 
-def main(url_override=None):
+def main(url_override=None, return_score=False):
     """Bridge function for app.py to trigger the audit."""
     pipeline = AuraAEOPipeline()
-    return pipeline.run_audit(url_override)
+    result = pipeline.run_audit(url_override)
+    
+    # NEW LOGIC: If return_score is True, return just the integer for the chart
+    if return_score:
+        if result and "basic_metrics" in result:
+            return result["basic_metrics"].get("aeo_score", 0)
+        return 0
+        
+    return result
 
 if __name__ == "__main__":
     target = input("Enter a URL to audit: ").strip()
