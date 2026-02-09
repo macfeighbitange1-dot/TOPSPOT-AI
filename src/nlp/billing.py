@@ -8,14 +8,13 @@ class BillingSystem:
     def __init__(self):
         self.data_file = "app_usage.json"
         
-        # Safaricom Daraja Credentials - SWITCHED TO LIVE
-        # IMPORTANT: Replace these with your PRODUCTION credentials from Daraja
+        # Safaricom Daraja Credentials - LIVE PRODUCTION
         self.shortcode = "174379" 
         self.passkey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
         self.consumer_key = "tebgdbs5GY2cAgzQo8S4FbAtGEfJoFGvRtGLGFApdYfAJLqm"
         self.consumer_secret = "fgqRJ6Qi0AAjsfkNW6dD39Vs7EGhgzSGG9Rz5dgKxWHbP5KCkhqb43ICBg5jAgzb"
         
-        # Base URLs - NOW SET TO PRODUCTION
+        # Base URL for Production
         self.base_url = "https://api.safaricom.co.ke" 
         
         self.load_data()
@@ -32,14 +31,32 @@ class BillingSystem:
             self._reset_user_data()
 
     def _reset_user_data(self):
-        """Sets default user data status."""
-        self.user_data = {"trials": 0, "is_pro": False, "trans_id": None}
+        """Sets default user data status with free token support."""
+        self.user_data = {
+            "trials": 0, 
+            "is_pro": False, 
+            "trans_id": None,
+            "free_token_used": False  # Track one-time free premium access
+        }
         self.save_data()
 
     def save_data(self):
         """Persists user status to local JSON storage."""
         with open(self.data_file, "w") as f:
             json.dump(self.user_data, f)
+
+    def can_access_premium(self):
+        """Logic check: Is user Pro OR do they have their 1 free token?"""
+        if self.user_data.get("is_pro", False):
+            return True
+        if not self.user_data.get("free_token_used", False):
+            return True
+        return False
+
+    def use_free_token(self):
+        """Consumes the one-time free premium token."""
+        self.user_data["free_token_used"] = True
+        self.save_data()
 
     def _get_access_token(self):
         """Generates the OAuth2 access token from Safaricom Production."""
@@ -53,7 +70,7 @@ class BillingSystem:
             return None
 
     def trigger_stk_push(self, phone, amount=99):
-        """Sends a real M-Pesa STK Push request to the user's phone via Production API."""
+        """Sends a real M-Pesa STK Push request via Production API."""
         access_token = self._get_access_token()
         if not access_token:
             return {"error": "Authentication Failed"}
@@ -62,7 +79,6 @@ class BillingSystem:
         password_str = f"{self.shortcode}{self.passkey}{timestamp}"
         password = base64.b64encode(password_str.encode()).decode()
         
-        # Phone cleaning for 254 format
         phone = str(phone).strip().replace("+", "")
         if phone.startswith("0"):
             phone = "254" + phone[1:]
@@ -96,7 +112,7 @@ class BillingSystem:
             return {"error": str(e)}
 
     def unlock_pro(self, transaction_id):
-        """Validates M-Pesa ID format and grants Pro access."""
+        """Validates M-Pesa ID format and grants permanent Pro access."""
         if not transaction_id:
             return False
             
@@ -110,12 +126,12 @@ class BillingSystem:
         return False
 
     def increment_trial(self):
-        """Tracks usage for non-paying users."""
+        """Tracks basic usage for non-paying users."""
         if not self.user_data["is_pro"]:
             self.user_data["trials"] += 1
             self.save_data()
         return self.user_data["trials"]
 
     def get_status(self):
-        """Fetches current subscription status."""
+        """Fetches current subscription and token status."""
         return self.user_data

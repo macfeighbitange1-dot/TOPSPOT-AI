@@ -60,7 +60,6 @@ else:
         if phone:
             with st.sidebar.spinner("Requesting M-Pesa PIN prompt..."):
                 response = billing.trigger_stk_push(phone, amount)
-                # Check for Safaricom success code '0'
                 if response.get("ResponseCode") == "0":
                     st.sidebar.success("✅ Prompt Sent! Enter PIN on your phone.")
                     st.sidebar.caption("Once paid, enter the M-Pesa ID below.")
@@ -135,33 +134,41 @@ if os.path.exists("last_fix.json"):
     comp3 = col_c.text_input("Competitor 3", placeholder="rival3.com")
 
     if st.button("Run Triple Threat Comparison"):
-        if not status["is_pro"]:
-            st.warning("🔒 Triple Threat requires 'The Optimizer' (KES 250) or higher.")
-        else:
+        if billing.can_access_premium():
             with st.spinner("Executing multi-competitor crawl..."):
+                # Consume free token if not Pro
+                if not status["is_pro"]:
+                    billing.use_free_token()
+                    st.toast("🎁 Free Premium Token Used!", icon="✨")
+                
                 chart_data = pd.DataFrame({
                     "Entity": ["You", "Comp 1", "Comp 2", "Comp 3"],
                     "AEO Score": [my_score, 45, 62, 38]
                 })
                 st.bar_chart(chart_data, x="Entity", y="AEO Score", color=["#1F6feb"])
+        else:
+            st.warning("🔒 Free token used. Upgrade to Pro (KES 250) to continue comparing competitors.")
 
     # --- SNIPPET SECTION (GATED) ---
     st.markdown("---")
     st.subheader("✨ AI-Ready Snippet Recommendation")
-    if status["is_pro"]:
+    if billing.can_access_premium():
         st.info(pro.get("suggested_snippet", "Generating snippet content..."))
     else:
         st.info("⚠️ [LOCKED] Upgrade to Pro (KES 99) to view the high-authority snippet recommended for LLMs.")
 
     # --- THE PAYWALL / PRO TOOLS ---
     st.markdown("---")
-    if status["is_pro"]:
+    if billing.can_access_premium():
         st.subheader("🛠️ Pro Implementation (JSON-LD)")
         st.code(json.dumps(pro.get("recommended_schema", {}), indent=2), language="json")
         
         if st.button("Generate Branded PDF Report"):
-            st.write("Generating Professional Report...")
-            st.success("Report Ready for Download (KES 499 Tier)")
+            if status["is_pro"]:
+                st.write("Generating Professional Report...")
+                st.success("Report Ready for Download")
+            else:
+                st.warning("🔒 Full PDF Agency reports require a Pro License.")
     else:
         st.warning("⚠️ **PRO CONTENT LOCKED**")
         st.write("Unlock the Full Schema, Snippets, and Professional PDF Reports starting at KES 99.")
