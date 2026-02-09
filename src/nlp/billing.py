@@ -31,31 +31,41 @@ class BillingSystem:
             self._reset_user_data()
 
     def _reset_user_data(self):
-        """Sets default user data status with free token support."""
+        """Sets default user data status using the new 10x structure."""
         self.user_data = {
-            "trials": 0, 
-            "is_pro": False, 
-            "trans_id": None,
-            "free_token_used": False  # Track one-time free premium access
+            "user_profile": {
+                "account_id": "GUEST-USER",
+                "tier": "FREE",
+                "is_pro": False,
+                "free_token_used": False,
+                "trial_count": 0
+            },
+            "billing_data": {
+                "trans_id": None,
+                "subscription_start": None,
+                "last_payment_kes": 0,
+                "payment_status": "PENDING"
+            }
         }
         self.save_data()
 
     def save_data(self):
         """Persists user status to local JSON storage."""
         with open(self.data_file, "w") as f:
-            json.dump(self.user_data, f)
+            json.dump(self.user_data, f, indent=4)
 
     def can_access_premium(self):
-        """Logic check: Is user Pro OR do they have their 1 free token?"""
-        if self.user_data.get("is_pro", False):
+        """Logic check: Accesses new nested JSON structure."""
+        profile = self.user_data.get("user_profile", {})
+        if profile.get("is_pro", False):
             return True
-        if not self.user_data.get("free_token_used", False):
+        if not profile.get("free_token_used", False):
             return True
         return False
 
     def use_free_token(self):
-        """Consumes the one-time free premium token."""
-        self.user_data["free_token_used"] = True
+        """Consumes the token within the user_profile nesting."""
+        self.user_data["user_profile"]["free_token_used"] = True
         self.save_data()
 
     def _get_access_token(self):
@@ -112,25 +122,26 @@ class BillingSystem:
             return {"error": str(e)}
 
     def unlock_pro(self, transaction_id):
-        """Validates M-Pesa ID format and grants permanent Pro access."""
+        """Grants access and updates new billing_data structure."""
         if not transaction_id:
             return False
             
         transaction_id = str(transaction_id).strip().upper()
         if len(transaction_id) >= 10 and transaction_id[0].isalpha():
-            self.user_data["is_pro"] = True
-            self.user_data["trans_id"] = transaction_id
-            self.user_data["trials"] = 10 
+            self.user_data["user_profile"]["is_pro"] = True
+            self.user_data["user_profile"]["tier"] = "PRO"
+            self.user_data["billing_data"]["trans_id"] = transaction_id
+            self.user_data["billing_data"]["payment_status"] = "VERIFIED"
             self.save_data()
             return True
         return False
 
     def increment_trial(self):
-        """Tracks basic usage for non-paying users."""
-        if not self.user_data["is_pro"]:
-            self.user_data["trials"] += 1
+        """Tracks usage in user_profile trial_count."""
+        if not self.user_data["user_profile"]["is_pro"]:
+            self.user_data["user_profile"]["trial_count"] += 1
             self.save_data()
-        return self.user_data["trials"]
+        return self.user_data["user_profile"]["trial_count"]
 
     def get_status(self):
         """Fetches current subscription and token status."""
