@@ -28,20 +28,26 @@ class AuraAEOPipeline:
 
     def run_audit(self, url: str):
         """Performs a full AEO audit and prepares tiered data for the Paywall."""
-        print(f"\n[SYSTEM]: Initiating Scan for {url}...")
+        print(f"\n[SYSTEM]: Initiating Deep Scan for {url}...")
         
         # PHASE 1: Data Ingestion
         data = self.ingestor.fetch_content(url)
-        if not data or "error" in data or not data.get("clean_text"):
-            print(f"FAILED: Could not extract content from {url}.")
+        
+        # --- 10x BETTER DEBUGGING ---
+        scraped_text = data.get('clean_text', '') if data else ""
+        print(f"DEBUG: Scraped {len(scraped_text)} characters from {url}")
+        
+        if not data or "error" in data or not scraped_text:
+            print(f"FAILED: Content extraction empty for {url}. Blocking detected.")
             return None
 
         # PHASE 2: Semantic & EEAT Analysis
+        print("[!] Phase 2: Validating EEAT & Authority Signals...")
         soup = BeautifulSoup(data.get('raw_html', ''), 'html.parser')
         eeat_engine = EEATValidator(soup)
         eeat_results = eeat_engine.analyze_authority()
         
-        analysis = self.analyzer.analyze(data['clean_text'])
+        analysis = self.analyzer.analyze(scraped_text)
         
         # Scoring Logic
         base_score = analysis.get("aeo_score", 0)
@@ -49,12 +55,14 @@ class AuraAEOPipeline:
         final_score = min(base_score + eeat_bonus, 100) 
         entities = self._clean_entities(analysis.get("top_entities", []))
         
+        print(f"DEBUG: Semantic Score: {base_score} | EEAT Bonus: +{eeat_bonus} | Total: {final_score}")
+        
         # PHASE 3: Generate Pro Features (The Value)
-        print("[!] Generating Pro Recommendations...")
-        suggested_answer = self.optimizer.generate_direct_answer(data['clean_text'])
+        print("[!] Phase 3: Synthesizing AI Snippets & JSON-LD...")
+        suggested_answer = self.optimizer.generate_direct_answer(scraped_text)
         recommended_schema = self.gen.generate_about_schema(entities)
         
-        # PHASE 4: TIERED RECORD CREATION (Volume Strategy Logic)
+        # PHASE 4: TIERED RECORD CREATION
         record = {
             "metadata": {
                 "url": url,
@@ -64,14 +72,14 @@ class AuraAEOPipeline:
             "basic_metrics": {
                 "aeo_score": final_score,
                 "eeat_bonus": eeat_bonus,
-                "trust_signals": "Verified" if eeat_results['has_author_byline'] else "Low",
+                "trust_signals": "Verified" if eeat_results.get('has_author_byline') else "Low",
                 "top_entities": [str(e[0]) for e in entities[:5]]
             },
             "pro_features": {
                 "suggested_snippet": suggested_answer,
                 "recommended_schema": recommended_schema,
                 "full_entity_cloud": [str(e[0]) for e in entities[:15]],
-                "is_locked": True # Default to locked until app.py confirms payment
+                "is_locked": True 
             }
         }
         
@@ -81,7 +89,7 @@ class AuraAEOPipeline:
             with open("last_fix.json", "w") as f:
                 json.dump(record, f, indent=4)
             
-            # 2. Append to a Permanent History Log for client tracking
+            # 2. Append to a Permanent History Log
             history_file = "audit_history.json"
             history = []
             if os.path.exists(history_file):
@@ -95,7 +103,7 @@ class AuraAEOPipeline:
             with open(history_file, "w") as f:
                 json.dump(history, f, indent=4)
                 
-            print(f"[DEBUG] Audit Complete. Results logged in history.")
+            print(f"[SUCCESS] Audit Complete. Results logged to {history_file}")
         except Exception as e:
             print(f"[ERROR] Logging Failure: {e}")
 
@@ -107,7 +115,6 @@ def main(url_override=None, return_score=False):
     pipeline = AuraAEOPipeline()
     result = pipeline.run_audit(url_override)
     
-    # Logic: If return_score is True, return just the integer for the chart
     if return_score:
         if result and "basic_metrics" in result:
             return result["basic_metrics"].get("aeo_score", 0)
