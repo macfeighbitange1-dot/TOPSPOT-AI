@@ -7,12 +7,14 @@ from typing import Dict, Optional
 class SemanticIngestor:
     """
     Advanced Stealth Ingestor.
-    Uses browser fingerprinting and behavioral jitter to bypass anti-bot shields.
+    Uses browser fingerprinting, referer spoofing, and behavioral jitter 
+    to bypass anti-bot shields and extract high-fidelity text.
     """
     
     def __init__(self, timeout: int = 20):
         self.timeout = timeout
-        # 10x BETTER: Rotating list of real browser fingerprints
+        
+        # 1. Rotating list of real browser fingerprints (Chrome, Firefox, Safari)
         self.user_agents = [
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -20,7 +22,7 @@ class SemanticIngestor:
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0'
         ]
         
-        # Look like traffic coming from high-authority sources
+        # 2. Referer Spoofing: Look like traffic coming from search engines
         self.referers = [
             'https://www.google.com/',
             'https://www.bing.com/',
@@ -29,16 +31,19 @@ class SemanticIngestor:
         ]
 
     def fetch_content(self, url: str) -> Dict[str, Optional[str]]:
-        # 1. Random Jitter: Pause for 0.5 to 2 seconds to mimic human reading speed
+        """
+        Fetches URL content using stealth tactics and extracts clean text via Trafilatura.
+        """
+        # 3. Behavioral Jitter: Pause for 0.5 to 2.0s to mimic human reading speed
         time.sleep(random.uniform(0.5, 2.0))
         
-        # 2. Pick random identity for this request
+        # 4. Construct a unique identity for this request
         headers = {
             'User-Agent': random.choice(self.user_agents),
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.5',
             'Referer': random.choice(self.referers),
-            'DNT': '1',
+            'DNT': '1', # Do Not Track header
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1',
         }
@@ -46,10 +51,13 @@ class SemanticIngestor:
         print(f"[LOG] Stealth-Fetching: {url}")
         
         try:
-            # 3. Use a Session to handle cookies automatically
+            # 5. Use a Session to handle cookies/handshakes automatically
             with requests.Session() as session:
                 response = session.get(url, headers=headers, timeout=self.timeout)
                 response.raise_for_status()
+                
+                # Get encoding correct, otherwise text might look like gibberish
+                response.encoding = response.apparent_encoding
                 downloaded = response.text
                 raw_html = downloaded
                 
@@ -60,8 +68,8 @@ class SemanticIngestor:
         except Exception as e:
             return {"error": f"Connection Failed: {str(e)}"}
 
-        # 4. Deep Extraction via Trafilatura
-        # We use 'favor_precision' to ensure we don't get menu/footer noise
+        # 6. Deep Extraction via Trafilatura
+        # 'favor_precision' ensures we get the main article, not the footer/ads
         clean_text = trafilatura.extract(
             downloaded,
             include_comments=False,
@@ -85,9 +93,10 @@ class SemanticIngestor:
 
 if __name__ == "__main__":
     ingestor = SemanticIngestor()
-    # Test with a high-security site
+    # Test with a known high-security site
     sample = ingestor.fetch_content("https://www.wikipedia.org/")
     if "error" not in sample:
         print(f"✅ Success! Scraped {len(sample['clean_text'])} characters.")
+        print(f"Title: {sample['title']}")
     else:
         print(f"❌ Error: {sample['error']}")
