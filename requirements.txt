@@ -9,4 +9,4 @@ mistralai
 requests
 beautifulsoup4
 trafilatura
-fpdf
+fpdf2

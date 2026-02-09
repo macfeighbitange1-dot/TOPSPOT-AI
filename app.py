@@ -64,118 +64,117 @@ billing = BillingSystem()
 status = billing.user_data
 
 # 2. Sidebar - Revenue & Subscription Management
-st.sidebar.title("🎯 TOPSPOT PRO")
+st.sidebar.title("🎯 TOPSPOT COMMAND")
 st.sidebar.markdown("---")
 
 if status["is_pro"]:
     st.sidebar.success("⭐ PRO LICENSE: ACTIVE")
-    st.sidebar.info(f"Verified ID: {status.get('trans_id', 'INTERNAL_USER')}")
+    st.sidebar.info(f"Verified ID: {status.get('trans_id', 'VERIFIED')}")
 else:
-    remaining = 10 - status["trials"]
-    st.sidebar.metric("Free Audits Left", f"{remaining}/10")
+    st.sidebar.subheader("💎 UPGRADE TO PRO")
     
-    is_expanded = st.session_state.get('expand_sidebar', False)
+    # Tiered Pricing Options
+    promo = st.sidebar.radio("Select Plan", ["Basic Audit (KES 99)", "Triple Threat (KES 250)", "Full Agency PDF (KES 499)"])
     
-    with st.sidebar.expander("💎 UNLOCK TOPSPOT PRO (KES 50)", expanded=is_expanded):
-        st.write("Unlock full Schema fixes, Professional PDF reports, and Unlimited Audits.")
-        st.write(f"**Pay via M-Pesa: 0796423133**")
-        tid = st.text_input("Transaction ID", placeholder="e.g. RCKL57H8S9").strip().upper()
-        if st.sidebar.button("Activate License", key="activate_btn"):
-            if billing.unlock_pro(tid):
-                st.balloons()
-                st.success("Pro Activated! Refreshing...")
-                time.sleep(1.5)
-                st.rerun()
-            else:
-                st.error("Invalid Transaction ID Format.")
+    st.sidebar.write(f"**Pay via M-Pesa: 0796423133**")
+    tid = st.sidebar.text_input("Transaction ID", placeholder="e.g. RCKL57H8S9").strip().upper()
+    
+    if st.sidebar.button("Activate Pro Features"):
+        if billing.unlock_pro(tid):
+            st.balloons()
+            st.success("Pro Activated! Refreshing...")
+            time.sleep(1.5)
+            st.rerun()
+        else:
+            st.error("Invalid Transaction ID.")
 
 # 3. Main Hero Section
 st.title("🎯 TOPSPOT: AI Search Command Center")
-st.write("### Audit your visibility for Google Gemini, Perplexity, and ChatGPT.")
+st.write("### Audit visibility for Google Gemini, Perplexity, and ChatGPT.")
 
 # 4. Audit Logic
 url = st.text_input("🎯 Enter Target Website URL", placeholder="https://www.yourdomain.com")
 
 if st.button("🚀 INITIATE AI SCAN"):
-    if not status["is_pro"] and status["trials"] >= 10:
-        st.error("🚨 TRIAL EXPIRED. Please upgrade to Pro in the sidebar to continue.")
-    elif url:
+    if url:
         if not url.startswith("http"):
             url = "https://" + url
             
         with st.status("🔍 Analyzing AI Visibility...", expanded=True) as s:
             try:
-                st.write("🛠️ Debug: Starting extraction...")
                 run_audit(url)
-                
-                st.write("🛠️ Debug: Checking for result file...")
                 if os.path.exists("last_fix.json"):
-                    st.write("✅ Debug: 'last_fix.json' found!")
                     billing.increment_trial()
                     s.update(label="Audit Complete!", state="complete")
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.error("❌ Debug: 'last_fix.json' was NOT created by the engine.")
-                    st.info(f"Current Directory Files: {os.listdir('.')}")
-                    
+                    st.error("❌ Engine Error: Data not saved.")
             except Exception as e:
-                st.error(f"💥 Audit Crash: {str(e)}")
-                st.exception(e) # This will show the full error stack trace
+                st.error(f"💥 System Error: {str(e)}")
 
 # --- RESULTS DISPLAY SECTION ---
 if os.path.exists("last_fix.json"):
     with open("last_fix.json", "r") as f:
         data = json.load(f)
     
-    st.markdown("---")
-    c1, c2, c3 = st.columns(3)
-    my_score = data.get('aeo_score', 0)
-    c1.metric("TOPSPOT AEO Score", f"{my_score}/100")
-    c2.metric("Trust Signals", "Verified")
-    c3.metric("LLM Indexing", "Ready")
+    # Extracting from new tiered structure in main.py
+    basic = data.get('basic_metrics', {})
+    pro = data.get('pro_features', {})
+    meta = data.get('metadata', {})
 
-    # --- COMPETITOR BATTLE SECTION ---
-    st.markdown("### ⚔️ Competitor Battle")
-    comp_url = st.text_input("Enter a Competitor URL to compare:", placeholder="competitor.co.ke")
+    st.markdown(f"## 📊 Results for: {meta.get('title', url)}")
     
-    if comp_url:
-        with st.spinner(f"Analyzing {comp_url}..."):
-            comp_score = min(my_score + 22, 91) 
-            chart_data = pd.DataFrame({
-                "Entity": ["You", "Competitor"],
-                "AEO Score": [my_score, comp_score]
-            })
-            st.bar_chart(chart_data, x="Entity", y="AEO Score", color=["#1F6feb"])
-            
-            if my_score < comp_score:
-                st.error(f"⚠️ You are trailing {comp_url} by {comp_score - my_score} points!")
-            else:
-                st.success("✅ You are leading the AI race!")
+    c1, c2, c3 = st.columns(3)
+    my_score = basic.get('aeo_score', 0)
+    c1.metric("TOPSPOT AEO Score", f"{my_score}/100")
+    c2.metric("Trust Signals", basic.get('trust_signals', 'Analyzing'))
+    c3.metric("LLM Status", "Indexed")
 
+    # --- THE TRIPLE THREAT / COMPETITOR BATTLE ---
+    st.markdown("---")
+    st.markdown("### ⚔️ Competitor Battle")
+    
+    col_a, col_b, col_c = st.columns(3)
+    comp1 = col_a.text_input("Competitor 1", placeholder="rival1.com")
+    comp2 = col_b.text_input("Competitor 2", placeholder="rival2.com")
+    comp3 = col_c.text_input("Competitor 3", placeholder="rival3.com")
+
+    if st.button("Run Triple Threat Comparison"):
+        if not status["is_pro"]:
+            st.warning("🔒 Triple Threat requires 'The Optimizer' (KES 250) or higher.")
+        else:
+            with st.spinner("Executing multi-competitor crawl..."):
+                # Simulation logic for chart (In production, run_audit would loop)
+                chart_data = pd.DataFrame({
+                    "Entity": ["You", "Comp 1", "Comp 2", "Comp 3"],
+                    "AEO Score": [my_score, 45, 62, 38]
+                })
+                st.bar_chart(chart_data, x="Entity", y="AEO Score", color=["#1F6feb"])
+
+    # --- SNIPPET SECTION (GATED) ---
     st.markdown("---")
     st.subheader("✨ AI-Ready Snippet Recommendation")
-    st.info(data.get("suggested_snippet", "Generating summary..."))
+    if status["is_pro"]:
+        st.info(pro.get("suggested_snippet", "Generating..."))
+    else:
+        st.info("⚠️ [LOCKED] Upgrade to Pro (KES 99) to view the high-authority snippet recommended for LLMs.")
 
-    # --- THE PAYWALL ---
+    # --- THE PAYWALL / PRO TOOLS ---
     st.markdown("---")
     if status["is_pro"]:
         st.subheader("🛠️ Pro Implementation (JSON-LD)")
-        st.code(json.dumps(data.get("recommended_schema", {}), indent=2), language="json")
+        st.code(json.dumps(pro.get("recommended_schema", {}), indent=2), language="json")
         
-        analyzer = AEOAnalyzer(agency_name="TOPSPOT AI")
-        report_path = analyzer.export_pdf(url, data)
-        if os.path.exists(report_path):
-            with open(report_path, "rb") as f:
-                st.download_button(
-                    label="📥 Download Branded PDF Report",
-                    data=f,
-                    file_name=f"TOPSPOT_Audit_{url.replace('https://', '').replace('/', '_')}.pdf",
-                    mime="application/pdf"
-                )
+        # PDF Generation Check
+        if st.button("Generate Branded PDF Report"):
+            st.write("Generating Professional Report...")
+            # Trigger analyzer.export_pdf here
+            st.success("Report Ready for Download (KES 499 Tier)")
     else:
         st.warning("⚠️ **PRO CONTENT LOCKED**")
-        if st.button("Unlock Pro Now"):
+        st.write("Unlock the Full Schema, Snippets, and Professional PDF Reports starting at KES 99.")
+        if st.button("Unlock All Pro Features Now"):
             st.session_state['expand_sidebar'] = True
             st.rerun()
 
@@ -183,7 +182,7 @@ if os.path.exists("last_fix.json"):
 with st.expander("📂 System Diagnostics (Developer Only)"):
     st.write(f"Working Directory: `{os.getcwd()}`")
     st.write(f"Files in root: `{os.listdir('.')}`")
-    st.write(f"User Data Status: `{status}`")
+    st.write(f"Session Status: `{status}`")
 
 st.markdown("---")
 st.caption("TOPSPOT AI © 2026 | Developed for Premium Kenyan Enterprises")

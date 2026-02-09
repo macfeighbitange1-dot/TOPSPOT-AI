@@ -27,8 +27,8 @@ class AuraAEOPipeline:
         return [e for e in entity_list if str(e[0]).upper() not in stop_entities]
 
     def run_audit(self, url: str):
-        """Performs a full AEO audit including EEAT Validation & Mistral Optimization."""
-        print(f"\n[SYSTEM]: Analyzing {url}...")
+        """Performs a full AEO audit and prepares tiered data for the Paywall."""
+        print(f"\n[SYSTEM]: Initiating Scan for {url}...")
         
         # PHASE 1: Data Ingestion
         data = self.ingestor.fetch_content(url)
@@ -43,45 +43,45 @@ class AuraAEOPipeline:
         
         analysis = self.analyzer.analyze(data['clean_text'])
         
-        # Scoring Logic: Base AEO Score + EEAT Bonus
+        # Scoring Logic
         base_score = analysis.get("aeo_score", 0)
         eeat_bonus = eeat_results.get("eeat_score_bonus", 0)
         final_score = min(base_score + eeat_bonus, 100) 
-        
         entities = self._clean_entities(analysis.get("top_entities", []))
         
-        # PHASE 3: Reporting
-        print(f"\n{'='*15} MISTRAL AEO AUDIT {'='*15}")
-        print(f"URL: {url}")
-        print(f"AEO Score: {final_score}/100")
+        # PHASE 3: Generate Pro Features (The Value)
+        print("[!] Generating Pro Recommendations...")
+        suggested_answer = self.optimizer.generate_direct_answer(data['clean_text'])
+        recommended_schema = self.gen.generate_about_schema(entities)
         
-        # PHASE 4: Optimization with Mistral
-        suggested_answer = "Content analysis complete. Website is indexed."
-        recommended_schema = {}
-        
-        if final_score < 95: 
-            print("\n[!] Invoking Mistral Optimizer...")
-            suggested_answer = self.optimizer.generate_direct_answer(data['clean_text'])
-            recommended_schema = self.gen.generate_about_schema(entities)
-        
-        # Record keeping - UPDATED KEYS TO MATCH app.py EXPECTATIONS
+        # PHASE 4: TIERED RECORD CREATION (Volume Strategy Logic)
         record = {
-            "url": url,
-            "title": data.get("title", "Unknown"),
-            "aeo_score": final_score, # Changed from 'score' to 'aeo_score'
-            "eeat_bonus": eeat_bonus,
-            "top_entities": [str(e[0]) for e in entities[:10]],
-            "suggested_snippet": suggested_answer,
-            "recommended_schema": recommended_schema
+            "metadata": {
+                "url": url,
+                "title": data.get("title", "Unknown"),
+                "timestamp": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+            },
+            "basic_metrics": {
+                "aeo_score": final_score,
+                "eeat_bonus": eeat_bonus,
+                "trust_signals": "Verified" if eeat_results['has_author_byline'] else "Low",
+                "top_entities": [str(e[0]) for e in entities[:5]]
+            },
+            "pro_features": {
+                "suggested_snippet": suggested_answer,
+                "recommended_schema": recommended_schema,
+                "full_entity_cloud": [str(e[0]) for e in entities[:15]],
+                "is_locked": True # Default to locked until app.py confirms payment
+            }
         }
         
-        # SAVE TO ROOT for Streamlit
+        # SAVE TO ROOT for Streamlit Dashboard
         try:
             with open("last_fix.json", "w") as f:
                 json.dump(record, f, indent=4)
-            print("[DEBUG] last_fix.json successfully written to root.")
+            print(f"[DEBUG] Audit Complete for {url}. Results stored in last_fix.json")
         except Exception as e:
-            print(f"[ERROR] Failed to write last_fix.json: {e}")
+            print(f"[ERROR] IO Failure: {e}")
 
         self.results_cache.append(record)
         return record
@@ -89,11 +89,9 @@ class AuraAEOPipeline:
 def main(url_override=None):
     """Bridge function for app.py to trigger the audit."""
     pipeline = AuraAEOPipeline()
-    # We return the audit result so app.py can confirm it finished
     return pipeline.run_audit(url_override)
 
 if __name__ == "__main__":
-    # For local CLI testing
     target = input("Enter a URL to audit: ").strip()
     if target:
         main(target)
