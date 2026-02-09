@@ -81,6 +81,11 @@ else:
         else:
             st.error("Invalid Transaction ID.")
 
+# --- ADMIN ACCESS SECTION ---
+st.sidebar.markdown("---")
+if st.sidebar.button("🛡️ Admin Portal"):
+    st.switch_page("admin.py")
+
 # 3. Main Hero Section
 st.title("🎯 TOPSPOT: AI Search Command Center")
 st.write("### Audit visibility for Google Gemini, Perplexity, and ChatGPT.")
