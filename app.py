@@ -35,6 +35,12 @@ st.markdown("""
 billing = BillingSystem()
 status = billing.user_data
 
+# Normalize status keys
+status.setdefault("is_pro", False)
+status.setdefault("trials", 0)
+status.setdefault("trans_id", None)
+status.setdefault("free_token_used", False)
+
 # 2. Sidebar - Revenue & Subscription Management
 st.sidebar.title("🎯 TOPSPOT COMMAND")
 st.sidebar.markdown("---")
@@ -45,15 +51,18 @@ if status["is_pro"]:
 else:
     st.sidebar.subheader("💎 UPGRADE TO PRO")
     
-    # Tiered Pricing Options
-    promo = st.sidebar.radio("Select Plan", ["Basic Audit (KES 99)", "Triple Threat (KES 250)", "Full Agency PDF (KES 499)"])
+    promo = st.sidebar.radio(
+        "Select Plan",
+        ["Basic Audit (KES 99)", "Triple Threat (KES 250)", "Full Agency PDF (KES 499)"]
+    )
     
-    # Automated M-Pesa STK Push Section (Direct Daraja Integration)
     st.sidebar.markdown("---")
     st.sidebar.write("**⚡ Instant Activation (STK Push)**")
-    phone = st.sidebar.text_input("Enter M-Pesa Number", placeholder="07XXXXXXXX or 254XXXXXXXX")
+    phone = st.sidebar.text_input(
+        "Enter M-Pesa Number",
+        placeholder="07XXXXXXXX or 254XXXXXXXX"
+    )
     
-    # Map selection to price
     amount = 99 if "99" in promo else 250 if "250" in promo else 499
 
     if st.sidebar.button(f"Pay KES {amount} via M-Pesa"):
@@ -70,7 +79,10 @@ else:
 
     st.sidebar.markdown("---")
     st.sidebar.write("**Manual Verification**")
-    tid = st.sidebar.text_input("M-Pesa Transaction ID", placeholder="e.g. RCKL57H8S9").strip().upper()
+    tid = st.sidebar.text_input(
+        "M-Pesa Transaction ID",
+        placeholder="e.g. RCKL57H8S9"
+    ).strip().upper()
     
     if st.sidebar.button("Verify & Activate"):
         if billing.unlock_pro(tid):
@@ -129,7 +141,6 @@ if os.path.exists("last_fix.json"):
     c2.metric("Trust Signals", basic.get('trust_signals', 'Analyzing'))
     c3.metric("LLM Status", "Indexed")
 
-    # --- THE TRIPLE THREAT / COMPETITOR BATTLE ---
     st.markdown("---")
     st.markdown("### ⚔️ Competitor Battle")
     
@@ -141,30 +152,27 @@ if os.path.exists("last_fix.json"):
     if st.button("Run Triple Threat Comparison"):
         if billing.can_access_premium():
             with st.status("⚔️ Battle in progress...", expanded=False) as s:
-                # Consume free token if not Pro
                 if not status["is_pro"]:
                     billing.use_free_token()
                     st.toast("🎁 Free Premium Token Used!", icon="✨")
 
-                # 1. Audit the rivals for real (Calling your main audit function)
                 score1 = run_audit(comp1, return_score=True) if comp1 else 0
                 score2 = run_audit(comp2, return_score=True) if comp2 else 0
                 score3 = run_audit(comp3, return_score=True) if comp3 else 0
                 
-                # 2. Build the REAL dataframe
                 chart_data = pd.DataFrame({
-                    "Entity": ["You", (comp1[:12] if comp1 else "Comp 1"), 
-                               (comp2[:12] if comp2 else "Comp 2"), 
+                    "Entity": ["You",
+                               (comp1[:12] if comp1 else "Comp 1"),
+                               (comp2[:12] if comp2 else "Comp 2"),
                                (comp3[:12] if comp3 else "Comp 3")],
                     "AEO Score": [my_score, score1, score2, score3]
                 })
                 
-                st.bar_chart(chart_data, x="Entity", y="AEO Score", color=["#1F6feb"])
+                st.bar_chart(chart_data, x="Entity", y="AEO Score")
                 s.update(label="Battle Complete!", state="complete")
         else:
             st.warning("🔒 Free token used. Upgrade to Pro (KES 250) to continue comparing competitors.")
 
-    # --- SNIPPET SECTION (GATED) ---
     st.markdown("---")
     st.subheader("✨ AI-Ready Snippet Recommendation")
     if billing.can_access_premium():
@@ -172,7 +180,6 @@ if os.path.exists("last_fix.json"):
     else:
         st.info("⚠️ [LOCKED] Upgrade to Pro (KES 99) to view the high-authority snippet recommended for LLMs.")
 
-    # --- THE PAYWALL / PRO TOOLS ---
     st.markdown("---")
     if billing.can_access_premium():
         st.subheader("🛠️ Pro Implementation (JSON-LD)")
@@ -191,13 +198,11 @@ if os.path.exists("last_fix.json"):
             st.session_state['expand_sidebar'] = True
             st.rerun()
 
-# --- SYSTEM DEBUG FOOTER ---
 with st.expander("📂 System Diagnostics (Developer Only)"):
     st.write(f"Working Directory: `{os.getcwd()}`")
     st.write(f"Files in root: `{os.listdir('.')}`")
     st.write(f"Session Status: `{status}`")
 
-# --- CLIENT AUDIT HISTORY ---
 st.markdown("---")
 st.subheader("📜 Recent Audit History")
 
@@ -205,9 +210,8 @@ if os.path.exists("audit_history.json"):
     with open("audit_history.json", "r") as f:
         try:
             history_data = json.load(f)
-            # Convert to a clean table for the client
             history_list = []
-            for entry in reversed(history_data): # Show newest first
+            for entry in reversed(history_data):
                 history_list.append({
                     "Date": entry['metadata']['timestamp'],
                     "Website": entry['metadata']['url'],
@@ -215,11 +219,11 @@ if os.path.exists("audit_history.json"):
                     "Trust": entry['basic_metrics']['trust_signals']
                 })
             
-            st.table(pd.DataFrame(history_list).head(10)) # Show last 10
-        except Exception as e:
+            st.table(pd.DataFrame(history_list).head(10))
+        except Exception:
             st.error("Error loading audit history.")
 else:
     st.info("No history found. Complete your first scan to start the log.")
 
 st.markdown("---")
-st.caption("TOPSPOT AI © 2026 | Developed for Premium Kenyan Enterprises")
+st.caption("TOPSPOT AI © 2026 | Global AI Search Visibility Platform")
