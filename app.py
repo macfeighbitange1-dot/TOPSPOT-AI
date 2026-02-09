@@ -142,7 +142,6 @@ if os.path.exists("last_fix.json"):
                     st.toast("🎁 Free Premium Token Used!", icon="✨")
 
                 # 1. Audit the rivals for real (Calling your main audit function)
-                # Note: Assuming run_audit handles URL formatting
                 score1 = run_audit(comp1, return_score=True) if comp1 else 0
                 score2 = run_audit(comp2, return_score=True) if comp2 else 0
                 score3 = run_audit(comp3, return_score=True) if comp3 else 0
@@ -192,6 +191,30 @@ with st.expander("📂 System Diagnostics (Developer Only)"):
     st.write(f"Working Directory: `{os.getcwd()}`")
     st.write(f"Files in root: `{os.listdir('.')}`")
     st.write(f"Session Status: `{status}`")
+
+# --- CLIENT AUDIT HISTORY ---
+st.markdown("---")
+st.subheader("📜 Recent Audit History")
+
+if os.path.exists("audit_history.json"):
+    with open("audit_history.json", "r") as f:
+        try:
+            history_data = json.load(f)
+            # Convert to a clean table for the client
+            history_list = []
+            for entry in reversed(history_data): # Show newest first
+                history_list.append({
+                    "Date": entry['metadata']['timestamp'],
+                    "Website": entry['metadata']['url'],
+                    "AEO Score": f"{entry['basic_metrics']['aeo_score']}/100",
+                    "Trust": entry['basic_metrics']['trust_signals']
+                })
+            
+            st.table(pd.DataFrame(history_list).head(10)) # Show last 10
+        except Exception as e:
+            st.error("Error loading audit history.")
+else:
+    st.info("No history found. Complete your first scan to start the log.")
 
 st.markdown("---")
 st.caption("TOPSPOT AI © 2026 | Developed for Premium Kenyan Enterprises")
