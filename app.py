@@ -135,17 +135,28 @@ if os.path.exists("last_fix.json"):
 
     if st.button("Run Triple Threat Comparison"):
         if billing.can_access_premium():
-            with st.spinner("Executing multi-competitor crawl..."):
+            with st.status("⚔️ Battle in progress...", expanded=False) as s:
                 # Consume free token if not Pro
                 if not status["is_pro"]:
                     billing.use_free_token()
                     st.toast("🎁 Free Premium Token Used!", icon="✨")
+
+                # 1. Audit the rivals for real (Calling your main audit function)
+                # Note: Assuming run_audit handles URL formatting
+                score1 = run_audit(comp1, return_score=True) if comp1 else 0
+                score2 = run_audit(comp2, return_score=True) if comp2 else 0
+                score3 = run_audit(comp3, return_score=True) if comp3 else 0
                 
+                # 2. Build the REAL dataframe
                 chart_data = pd.DataFrame({
-                    "Entity": ["You", "Comp 1", "Comp 2", "Comp 3"],
-                    "AEO Score": [my_score, 45, 62, 38]
+                    "Entity": ["You", (comp1[:12] if comp1 else "Comp 1"), 
+                               (comp2[:12] if comp2 else "Comp 2"), 
+                               (comp3[:12] if comp3 else "Comp 3")],
+                    "AEO Score": [my_score, score1, score2, score3]
                 })
+                
                 st.bar_chart(chart_data, x="Entity", y="AEO Score", color=["#1F6feb"])
+                s.update(label="Battle Complete!", state="complete")
         else:
             st.warning("🔒 Free token used. Upgrade to Pro (KES 250) to continue comparing competitors.")
 
