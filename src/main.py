@@ -75,13 +75,29 @@ class AuraAEOPipeline:
             }
         }
         
-        # SAVE TO ROOT for Streamlit Dashboard
+        # SAVE TO ROOT for Streamlit Dashboard & Permanent History
         try:
+            # 1. Save the single latest result
             with open("last_fix.json", "w") as f:
                 json.dump(record, f, indent=4)
-            print(f"[DEBUG] Audit Complete for {url}. Results stored in last_fix.json")
+            
+            # 2. Append to a Permanent History Log for client tracking
+            history_file = "audit_history.json"
+            history = []
+            if os.path.exists(history_file):
+                with open(history_file, "r") as f:
+                    try:
+                        history = json.load(f)
+                    except json.JSONDecodeError:
+                        history = []
+            
+            history.append(record)
+            with open(history_file, "w") as f:
+                json.dump(history, f, indent=4)
+                
+            print(f"[DEBUG] Audit Complete. Results logged in history.")
         except Exception as e:
-            print(f"[ERROR] IO Failure: {e}")
+            print(f"[ERROR] Logging Failure: {e}")
 
         self.results_cache.append(record)
         return record
@@ -91,7 +107,7 @@ def main(url_override=None, return_score=False):
     pipeline = AuraAEOPipeline()
     result = pipeline.run_audit(url_override)
     
-    # NEW LOGIC: If return_score is True, return just the integer for the chart
+    # Logic: If return_score is True, return just the integer for the chart
     if return_score:
         if result and "basic_metrics" in result:
             return result["basic_metrics"].get("aeo_score", 0)
