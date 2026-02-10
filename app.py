@@ -108,6 +108,7 @@ if st.button("🚀 INITIATE AI SCAN"):
                 # Clear old results to prevent ghost data
                 if os.path.exists("last_fix.json"): os.remove("last_fix.json")
                 
+                # Run the actual main.py pipeline
                 run_audit(target_url)
                 
                 if os.path.exists("last_fix.json"):
@@ -116,7 +117,7 @@ if st.button("🚀 INITIATE AI SCAN"):
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.error("❌ Engine Error: Failed to save result.")
+                    st.error("❌ Engine Error: Data file not generated.")
             except Exception as e:
                 st.error(f"💥 System Error: {str(e)}")
 
@@ -138,6 +139,15 @@ if os.path.exists("last_fix.json"):
     c3.metric("LLM Status", "Indexed")
 
     st.markdown("---")
+    
+    # PDF Generator Button (Pro Only)
+    if status.get("is_pro"):
+        if st.button("📄 Generate & Download Branded PDF Report"):
+            analyzer = AEOAnalyzer()
+            pdf_path = analyzer.export_pdf(meta.get('url'), data)
+            with open(pdf_path, "rb") as pdf_file:
+                st.download_button("Click to Download Report", data=pdf_file, file_name=f"AEO_Report_{meta.get('title')}.pdf")
+
     st.markdown("### ⚔️ Competitor Battle")
     
     col_a, col_b, col_c = st.columns(3)
@@ -152,6 +162,7 @@ if os.path.exists("last_fix.json"):
                     billing.use_free_token()
                     st.toast("🎁 Free Premium Token Used!", icon="✨")
 
+                # Safer score extraction
                 score1 = run_audit(comp1, return_score=True) if comp1 else 0
                 score2 = run_audit(comp2, return_score=True) if comp2 else 0
                 score3 = run_audit(comp3, return_score=True) if comp3 else 0
@@ -174,8 +185,28 @@ if os.path.exists("last_fix.json"):
     else:
         st.info("⚠️ [LOCKED] Upgrade to Pro (KES 99) to view AI snippets and JSON-LD schema.")
 
+# --- HISTORY SECTION ---
+st.markdown("---")
+st.subheader("📜 Recent Audit History")
+if os.path.exists("audit_history.json"):
+    try:
+        with open("audit_history.json", "r") as f:
+            history_data = json.load(f)
+            # Display last 5 in a clean table
+            df_history = pd.DataFrame([
+                {
+                    "Timestamp": item['metadata']['timestamp'],
+                    "Website": item['metadata']['url'],
+                    "AEO Score": f"{item['basic_metrics']['aeo_score']}/100"
+                } for item in reversed(history_data[-5:])
+            ])
+            st.table(df_history)
+    except:
+        st.write("History log is empty or corrupted.")
+
 with st.expander("📂 System Diagnostics"):
     st.write(f"Session Status: `{status}`")
+    st.write(f"Working Dir: `{os.getcwd()}`")
 
 st.markdown("---")
 st.caption("TOPSPOT AI © 2026 | Global AI Search Visibility Platform")
