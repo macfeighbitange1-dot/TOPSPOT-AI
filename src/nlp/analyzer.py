@@ -40,7 +40,6 @@ class AEOAnalyzer:
         sentences = list(doc.sents)
         if not sentences:
             return 0
-
         avg_len = len(doc) / len(sentences)
         if 14 <= avg_len <= 22:
             return 30
@@ -51,17 +50,14 @@ class AEOAnalyzer:
 
     def _direct_answer_intent(self, text: str):
         lead = text[:220].lower()
-
         strong = [
             r"\b(is|means|refers to|defined as)\b",
             r"\b(what is|who is|how does|why does)\b"
         ]
-
         moderate = [
             r"\b(services include|we provide|our platform)\b",
             r"\b(features|benefits|solutions)\b"
         ]
-
         if any(re.search(p, lead) for p in strong):
             return 25
         if any(re.search(p, lead) for p in moderate):
@@ -73,15 +69,11 @@ class AEOAnalyzer:
             "research", "data", "study", "according to", "certified",
             "expert", "official", "authority", "trusted"
         ]
-
         score = sum(4 for m in markers if m in doc.text.lower())
-
         if any(t.like_num for t in doc):
             score += 8
-
         if any(ent.label_ == "ORG" for ent in doc.ents):
             score += 6
-
         return min(score, 25)
 
     def _entity_density(self, doc):
@@ -93,7 +85,9 @@ class AEOAnalyzer:
         ]
         unique_entities = set(entities)
         score = min(len(unique_entities) * 4, 20)
-        top_entities = Counter(entities).most_common(10)
+        top_entities_raw = Counter(entities).most_common(10)
+        # Safe unpacking for future-proofing
+        top_entities = [(str(e), int(c)) for e, c in top_entities_raw if isinstance(e, str) and isinstance(c, int)]
         return score, top_entities
 
     # --------------------------------------------------
@@ -105,7 +99,6 @@ class AEOAnalyzer:
         Primary AEO analysis method.
         Enterprise-grade scoring with Sentence Complexity, Semantic Density, and Variance.
         """
-
         if not text or len(text.strip()) < 80:
             return {
                 "aeo_score": 0,
